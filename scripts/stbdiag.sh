@@ -1,19 +1,29 @@
 #!/bin/sh
-#0.4
-#This script assumes it is run on a device with /mnt/hdd as a persistent directory (Amulet DVR for example)
-#This script will gather things, and upload the output to Dropbox. (Tom Simpson)
-#This script will look for THINK client and cause a coredump.
-#This file is known as "diagupload.sh" on Dropbox share, I download and rename in instructions to prevent from over writing this in some dumb fashion.
+#set -x
+###############################################################################################################
+#                                                                                                             #
+# This script assumes it is run on a device with /mnt/persist as a persistent directory (should work for      #
+# all Entone versions). It will gather STB diag info and cause a core dump for the THINK client. Following    #
+# this it will upload the tar/gz output to Dropbox. (Tom Simpson)                                             #
+# This script will look for THINK client and cause a coredump.                                                #
+# This file is known as "diagupload.sh" on Dropbox share, I download and rename in instructions to prevent    #
+# from over writing this in some dumb fashion.                                                                #
+#                                                                                                             #
+###############################################################################################################
+
 clear
 echo "Hello ${h1}, we are going to run a few things. You will most likely need to reboot afterwards" 
 
 h1=$(hostname)
 date=$( date +%Y%m%d_%H%M%S )
 
+mkdir -p /mnt/persist/${h1}/corefiles
+mkdir -p /mnt/persist/${h1}/logfiles
+
 echo "Dumping dmesg to file"
-dmesg > /mnt/hdd/${h1}/corefiles/dmesg-${date}.out
+dmesg > /mnt/persist/${h1}/logfiles/dmesg-${date}.out
 echo "Dumping top to file"
-top -b -n1 > /mnt/hdd/${h1}/corefiles/top-${date}.out
+top -b -n1 > /mnt/persist/${h1}/logfiles/top-${date}.out
 
 echo "Gathering diagnostic info"
 hwblk_field() { echo "$status" | sed -ne "/$1/ s|.*: ||p" ; }
@@ -94,7 +104,7 @@ print_json() {
 	_print_value 'Ram Size (Used)' "$(ram_size | toKilo)MB ($(ram_used | toKilo)MB)"
 	_print_value 'System Memory' "$(ram_system_free | toKilo) / $(ram_system_total | toKilo)"
 	_print_value 'Nexus Memory' "$(ram_nexus_free | toKilo) / $(ram_nexus_total | toKilo)"
-	_print_value 'HDD Size (Used)' "$(disk_size /mnt/hdd) ($(disk_used /mnt/hdd))"
+	_print_value 'persist Size (Used)' "$(disk_size /mnt/persist) ($(disk_used /mnt/persist))"
 	_print_value 'IP Address' "$(hwblk_field 'IP')"
 
 	# TODO: implement error code field
@@ -102,33 +112,87 @@ print_json() {
 	printf "}"
 }
 
-print_json >/mnt/hdd/${h1}/corefiles/generalstbinfo.out
+upload_to_dropbox() {
+
+    curl -H "Authorization: Bearer ZwB0XhhU_yoAAAAAAANEpkjYNQxNua5rQtFAGV2DHYeaQ-sQeDyugH8JLp4-7Y1o" https://api-content.dropbox.com/1/files_put/auto/ -T /mnt/persist/${h1}-${date}-core.tar.gz
+    curl -H "Authorization: Bearer ZwB0XhhU_yoAAAAAAANEpkjYNQxNua5rQtFAGV2DHYeaQ-sQeDyugH8JLp4-7Y1o" https://api-content.dropbox.com/1/files_put/auto/ -T /mnt/persist/${h1}-${date}-logs.tar.gz
+
+}
+
+print_json >/mnt/persist/${h1}/logfiles/generalstbinfo.out
 
 #Looking for Think client, if it's not running dump a log message. If it is running, kill it for core file.
 #case "$(pidof think | wc -w)" in
 
-#0)  echo "Think Client NOT running.  $(date)" >> /mnt/hdd/${h1}/corefiles/generalstbinfo.out
+#0)  echo "Think Client NOT running.  $(date)" >> /mnt/persist/${h1}/corefiles/generalstbinfo.out
 #	;;
-#*)  echo "Think Client IS running, killing for core file: $(date)" >> /mnt/hdd/${h1}/corefiles/generalstbinfo.out
+#*)  echo "Think Client IS running, killing for core file: $(date)" >> /mnt/persist/${h1}/corefiles/generalstbinfo.out
     killall -11 think
 #    echo "Killing think client core file since it's running."
 #    ;;
 #esac
 
-printf "Creating core file archive /mnt/hdd/${h1}-${date}-core.tar.gz, this will take a moment."
-cd /mnt/hdd/${h1}/corefiles
-tar -czvf /mnt/hdd/${h1}-${date}-core.tar.gz ./*
-ls -l /mnt/hdd/*.gz 
-printf "Creating log file archive if available /mnt/hdd/${h1}-${date}-logs.tar.gz"
-cd /mnt/hdd/
-tar -czvf /mnt/hdd/${h1}-${date}-logs.tar.gz -C /mnt/hdd/ logf*
-ls -l /mnt/hdd/*.gz
-curl -H "Authorization: Bearer ZwB0XhhU_yoAAAAAAANEpkjYNQxNua5rQtFAGV2DHYeaQ-sQeDyugH8JLp4-7Y1o" https://api-content.dropbox.com/1/files_put/auto/ -T /mnt/hdd/${h1}-${date}-core.tar.gz
-curl -H "Authorization: Bearer ZwB0XhhU_yoAAAAAAANEpkjYNQxNua5rQtFAGV2DHYeaQ-sQeDyugH8JLp4-7Y1o" https://api-content.dropbox.com/1/files_put/auto/ -T /mnt/hdd/${h1}-${date}-logs.tar.gz
+echo "Creating core file archive /mnt/persist/${h1}-${date}-core.tar.gz, this will take a moment."
+
+DIR=/tmp/corefiles
+found=0
+x=1
+
+for x in 1 2 3 4 5 6 7 8 9 10
+do
+  echo "Waiting for core file: $x"
+  if [ "$(ls -A $DIR)" ]; then
+    found=1
+    break
+  else
+    echo "$DIR is Empty"
+    sleep 1
+  fi
+done
+
+if [ $found -eq 0 ]; then
+  echo "Could not create core file... exiting!"
+  exit 255
+fi
+    
+ls -la /tmp/corefiles
+#mv /tmp/corefiles/* /mnt/persist/${h1}/corefiles/
+#cd /mnt/persist/${h1}/corefiles
+tar -czvf /mnt/persist/${h1}-${date}-core.tar.gz /tmp/corefiles/*
+ls -l /mnt/persist/*.gz 
+
+printf "Creating log file archive if available /mnt/persist/${h1}-${date}-logs.tar.gz"
+cd /mnt/persist/${h1}/logfiles
+tar -czvf /mnt/persist/${h1}-${date}-logs.tar.gz ./*
+ls -l /mnt/persist/*.gz
+
+cd /mnt/persist
+
+# 
+# Check whether upload is desired.
+#
+while true; do
+  read -p "Do you wish to upload tar files to Dropbox? [Y/n]" yn
+  case $yn in
+    [Nn]* ) echo "Upload not performed."; break;;
+        * ) echo "Uploading..."; 
+            upload_to_dropbox ;
+            echo ""
+            break;;
+  esac
+done
+
+#
+# Check whether cleanup is desired.
+#
+while true; do
+  read -p "Do you wish to clean up core/log files? [Y/n]" yn
+  case $yn in
+   [Nn]* ) echo "Cleanup not performed."; exit;;
+       * ) echo "Cleaning up..."; break;;
+  esac
+done
+                  
 printf "\nCleaning up after ourselves.\n"
-#find /mnt/hdd/${h1}/corefiles -type f -mtime +3 -delete
-#find /mnt/hdd/ -name log -type f -mtime +3 -delete
-#rm /mnt/hdd/*.gz
-#rm /mnt/hdd/log*
-#rm /mnt/hdd/${h1}/corefiles/*
+rm -rf /mnt/persist/${h1}*
 echo  "Done, you can reboot now."
