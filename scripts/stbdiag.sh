@@ -12,12 +12,24 @@
 ###############################################################################################################
 
 clear
+#
+# Looking for Think client, if it's not running EXIT. If it is running, kill it for core file.
+#
+case "$(pidof think | wc -w)" in
+
+0)  echo "Think Client NOT running. Exiting!"  ;
+     exit ;
+	;;
+*)  echo "Think Client IS running, killing for core file: $(date)" ;
+    killall -11 think ;
+    ;;
+esac
+
 echo "Hello ${h1}, we are going to run a few things. You will most likely need to reboot afterwards" 
 
 h1=$(hostname)
 date=$( date +%Y%m%d_%H%M%S )
 
-mkdir -p /mnt/persist/${h1}/corefiles
 mkdir -p /mnt/persist/${h1}/logfiles
 
 echo "Dumping dmesg to file"
@@ -127,17 +139,6 @@ do_cleanup() {
 
 print_json >/mnt/persist/${h1}/logfiles/generalstbinfo.out
 
-#Looking for Think client, if it's not running dump a log message. If it is running, kill it for core file.
-#case "$(pidof think | wc -w)" in
-
-#0)  echo "Think Client NOT running.  $(date)" >> /mnt/persist/${h1}/corefiles/generalstbinfo.out
-#	;;
-#*)  echo "Think Client IS running, killing for core file: $(date)" >> /mnt/persist/${h1}/corefiles/generalstbinfo.out
-    killall -11 think
-#    echo "Killing think client core file since it's running."
-#    ;;
-#esac
-
 echo "Creating core file archive /mnt/persist/${h1}-${date}-core.tar.gz, this will take a moment."
 
 DIR=/tmp/corefiles
@@ -162,17 +163,12 @@ if [ $found -eq 0 ]; then
 fi
     
 ls -la /tmp/corefiles
-#mv /tmp/corefiles/* /mnt/persist/${h1}/corefiles/
-#cd /mnt/persist/${h1}/corefiles
 tar -czvf /mnt/persist/${h1}-${date}-core.tar.gz /tmp/corefiles/*
 ls -l /mnt/persist/*.gz 
 
 printf "Creating log file archive if available /mnt/persist/${h1}-${date}-logs.tar.gz"
-cd /mnt/persist/${h1}/logfiles
-tar -czvf /mnt/persist/${h1}-${date}-logs.tar.gz ./*
+tar -czvf /mnt/persist/${h1}-${date}-logs.tar.gz /mnt/persist/${h1}/logfiles/*
 ls -l /mnt/persist/*.gz
-
-cd /mnt/persist
 
 # 
 # Check whether upload is desired.
