@@ -11,15 +11,22 @@
 #                                                                                                             #
 ###############################################################################################################
 
+CORE_DIR=/tmp/corefiles
+
 clear
 #
-# Looking for Think client, if it's not running EXIT. If it is running, kill it for core file.
+# Looking for Think client, if it's not running and no core files were left around, EXIT. If it is running, kill it for core file.
 #
 case "$(pidof think | wc -w)" in
 
-0)  echo "Think Client NOT running. Exiting!"  ;
-     exit ;
-	;;
+0)  echo "Think Client NOT running. "  ;
+    if [ "$(ls -A $CORE_DIR)" ]; then
+        echo "Core files exist, continuing!" ;
+    else
+        echo "No core files exist. EXITING!" ;
+        exit ;
+    fi
+    ;;
 *)  echo "Think Client IS running, killing for core file: $(date)" ;
     killall -11 think ;
     ;;
@@ -141,18 +148,17 @@ print_json >/mnt/persist/${h1}/logfiles/generalstbinfo.out
 
 echo "Creating core file archive /mnt/persist/${h1}-${date}-core.tar.gz, this will take a moment."
 
-DIR=/tmp/corefiles
 found=0
 x=1
 
 for x in 1 2 3 4 5 6 7 8 9 10
 do
   echo "Waiting for core file: $x"
-  if [ "$(ls -A $DIR)" ]; then
+  if [ "$(ls -A $CORE_DIR)" ]; then
     found=1
     break
   else
-    echo "$DIR is Empty"
+    echo "$CORE_DIR is Empty"
     sleep 1
   fi
 done
