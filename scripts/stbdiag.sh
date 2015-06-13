@@ -11,7 +11,7 @@
 #                                                                                                             #
 ###############################################################################################################
 
-CORE_DIR=/tmp/corefiles
+CORE_DIR=`cat /proc/sys/kernel/core_pattern | awk 'BEGIN{FS="%"}{print $1}'`
 
 clear
 #
@@ -151,25 +151,28 @@ echo "Creating core file archive /mnt/persist/${h1}-${date}-core.tar.gz, this wi
 found=0
 x=1
 
+echo -n "Waiting for core file: ." 
+
 for x in 1 2 3 4 5 6 7 8 9 10
 do
-  echo "Waiting for core file: $x"
   if [ "$(ls -A $CORE_DIR)" ]; then
     found=1
     break
   else
-    echo "$CORE_DIR is Empty"
+    #echo "$CORE_DIR is Empty"
+    echo -n "."
     sleep 1
   fi
 done
+echo ""
 
 if [ $found -eq 0 ]; then
   echo "Could not create core file... exiting!"
   exit 255
 fi
     
-ls -la /tmp/corefiles
-tar -czvf /mnt/persist/${h1}-${date}-core.tar.gz /tmp/corefiles/*
+ls -la $CORE_DIR
+tar -czvf /mnt/persist/${h1}-${date}-core.tar.gz $CORE_DIR/*
 ls -l /mnt/persist/*.gz 
 
 printf "Creating log file archive if available /mnt/persist/${h1}-${date}-logs.tar.gz"
