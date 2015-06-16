@@ -135,7 +135,8 @@ upload_to_dropbox() {
 
     curl -H "Authorization: Bearer zf_DdnPHb5AAAAAAAAAADT9lSd93RJy3HeBShWgENMgso_IYW9Cu48XN6E4PCg15" https://api-content.dropbox.com/1/files_put/auto/uploads/ -T /mnt/persist/${h1}-${date}-core.tar.gz
     curl -H "Authorization: Bearer zf_DdnPHb5AAAAAAAAAADT9lSd93RJy3HeBShWgENMgso_IYW9Cu48XN6E4PCg15" https://api-content.dropbox.com/1/files_put/auto/uploads/ -T /mnt/persist/${h1}-${date}-logs.tar.gz
-
+    echo "Files uploaded to QA Dropbox Account."
+    echo ""
 }
 
 do_cleanup() {
@@ -182,35 +183,28 @@ ls -l /mnt/persist/*.gz
 # 
 # Check whether upload is desired.
 #
-while true; do
-  read -p "Do you wish to upload tar files to Dropbox? [Y/n]" yn
-  case $yn in
-    [Nn]* ) echo "Upload not performed."; break;;
-        * ) echo "Uploading..."; 
-            upload_to_dropbox ;
-            echo ""
-            break;;
-  esac
-done
+read -p "Do you wish to upload tar files to Dropbox? [Y/n]" yn
+case $yn in
+  [Nn]* ) echo "Upload not performed."; break;;
+      * ) echo "Uploading..."; 
+          upload_to_dropbox ;
+          break;;
+esac
 
 #
 # Check whether cleanup is desired.
 #
-while true; do
-  read -p "Do you wish to clean up core/log files? [Y/n]" yn
-  case $yn in
-   [Nn]* ) echo "Cleanup not performed."; break;;
-       * ) echo "Cleaning up..."; do_cleanup ; break;;
-  esac
-done
+read -p "Do you wish to clean up core/log files? [Y/n]" yn
+case $yn in
+ [Nn]* ) echo "Cleanup not performed."; break;;
+     * ) echo "Cleaning up..."; do_cleanup ; break;;
+esac
 
 #
 # Check whether reboot is desired.
 #
-while true; do
-  read -p "Do you wish to reboot the box? [Y/n]" yn
-  case $yn in
-   [Nn]* ) echo "Bye!"; exit;;
-       * ) echo "Rebooting!"; reboot; break;;
-  esac
-done
+read -p "Do you wish to reboot the box? [Y/n]" yn
+case $yn in
+ [Nn]* ) echo "Bye!"; exit;;
+     * ) echo "Rebooting!"; reboot; break;;
+esac
