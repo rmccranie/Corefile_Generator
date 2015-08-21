@@ -14,6 +14,7 @@ HOST=$(hostname)
 DATE=$( date +%Y%m%d_%H%M%S )
 LOCAL_SCRIPT_DIR="/mnt/hdd"
 UTILS_SUCCESS=0
+THINK_KILL=0
 
 clear
 mkdir -p $LOCAL_SCRIPT_DIR/${HOST}/logfiles
@@ -33,27 +34,40 @@ fi
 #
 # Do timed logread command (Entone)
 #
-echo "Doing timed logread (Entone request).  This will take 1 minute."
-do_timed_logread 1 $LOCAL_SCRIPT_DIR/${HOST}/logfiles/logread.out
+read -p "Do you want to accumulate 1 minute of logread data? [Yn]" yn
+case $yn in
+ [Nn]* ) break;;
+     * ) echo "Doing timed logread.  This will take 1 minute.";
+         do_timed_logread 1 $LOCAL_SCRIPT_DIR/${HOST}/logfiles/logread.out;
+         break;;
+esac
+
+read -p "Do you want to check Think status and force kill if running? [Yn]" yn
+case $yn in
+ [Nn]* ) echo "Skipping Think kill"; THINK_KILL=0; break;;
+     * ) break;;
+esac
 
 #
 # Looking for Think client, if it's not running and no core files were left around, EXIT. If it is running, kill it for core file.
 #
-echo -n "Think status at script start: " | tee $LOCAL_SCRIPT_DIR/${HOST}/logfiles/think_status.out
-case "$(pidof think | wc -w)" in
+if [ $THINK_KILL -eq 1 ]; then
+   echo -n "Think status at script start: " | tee $LOCAL_SCRIPT_DIR/${HOST}/logfiles/think_status.out
+   case "$(pidof think | wc -w)" in
 
-0)  echo -n "Think Client NOT running. " | tee -a $LOCAL_SCRIPT_DIR/${HOST}/logfiles/think_status.out ;
-    if [ "$(ls -A $CORE_DIR)" ]; then
-        echo "Core files exist, continuing!" | tee -a $LOCAL_SCRIPT_DIR/${HOST}/logfiles/think_status.out ;
-    else
-        echo "No core files exist. EXITING!" | tee -a $LOCAL_SCRIPT_DIR/${HOST}/logfiles/think_status.out ;
-        exit ;
-    fi
-    ;;
-*)  echo "Think Client IS running, killing for core file: $DATE" | tee -a $LOCAL_SCRIPT_DIR/${HOST}/logfiles/think_status.out;
-    killall -11 think ;
-    ;;
-esac
+   0)  echo -n "Think Client NOT running. " | tee -a $LOCAL_SCRIPT_DIR/${HOST}/logfiles/think_status.out ;
+       if [ "$(ls -A $CORE_DIR)" ]; then
+           echo "Core files exist, continuing!" | tee -a $LOCAL_SCRIPT_DIR/${HOST}/logfiles/think_status.out ;
+       else
+           echo "No core files exist. EXITING!" | tee -a $LOCAL_SCRIPT_DIR/${HOST}/logfiles/think_status.out ;
+           exit ;
+       fi
+       ;;
+   *)  echo "Think Client IS running, killing for core file: $DATE" | tee -a $LOCAL_SCRIPT_DIR/${HOST}/logfiles/think_status.out;
+       killall -11 think ;
+       ;;
+   esac
+fi
 
 echo "Dumping dmesg to file"
 dmesg > $LOCAL_SCRIPT_DIR/${HOST}/logfiles/dmesg-${DATE}.out
@@ -100,7 +114,7 @@ ls -l $LOCAL_SCRIPT_DIR/*.gz
 # 
 # Check whether upload is desired.
 #
-read -p "Do you wish to upload tar files to Dropbox? [Y/n]" yn
+read -p "Do you want to upload tar files to Dropbox? [Y/n]" yn
 case $yn in
   [Nn]* ) echo "Upload not performed."; break;;
       * ) echo "Uploading..."; 
@@ -112,7 +126,7 @@ esac
 #
 # Check whether cleanup is desired.
 #
-read -p "Do you wish to clean up core/log files? [Y/n]" yn
+read -p "Do you want to clean up core/log files? [Y/n]" yn
 case $yn in
  [Nn]* ) echo "Cleanup not performed."; break;;
      * ) echo "Cleaning up..."; do_cleanup $LOCAL_SCRIPT_DIR/${HOST}*  $LOCAL_SCRIPT_DIR/stbdiag*.sh ; break;;
@@ -121,7 +135,7 @@ esac
 #
 # Check whether reboot is desired.
 #
-read -p "Do you wish to reboot the box? [Y/n]" yn
+read -p "Do you want to reboot the box? [Y/n]" yn
 case $yn in
  [Nn]* ) echo "Bye!"; exit;;
      * ) echo "Rebooting!"; reboot; break;;
