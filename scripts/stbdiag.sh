@@ -15,7 +15,7 @@ DATE=$( date +%Y%m%d_%H%M%S )
 LOCAL_SCRIPT_DIR="/mnt/hdd/cbt"
 CBT_LOGS_DIR=$LOCAL_SCRIPT_DIR/${HOST}/cbt_logfiles
 UTILS_SUCCESS=0
-THINK_KILL=0
+THINK_KILL=1
 
 clear
 mkdir -p $CBT_LOGS_DIR
@@ -71,7 +71,7 @@ if [ $THINK_KILL -eq 1 ]; then
 fi
 
 echo "Dumping dmesg to file"
-dmesg > $CB_LOGS_DIR/dmesg-${DATE}.out
+dmesg > $CBT_LOGS_DIR/dmesg-${DATE}.out
 echo "Dumping top to file"
 top -b -n1 > $CBT_LOGS_DIR/top-${DATE}.out
 
@@ -130,7 +130,7 @@ esac
 read -p "Do you want to clean up script/core/log files? [Y/n]" yn
 case $yn in
  [Nn]* ) echo "Cleanup not performed."; break;;
-     * ) echo "Cleaning up..."; do_cleanup $LOCAL_SCRIPT_DIR; break;;
+     * ) echo "Cleaning up..."; do_cleanup $LOCAL_SCRIPT_DIR /mnt/hdd/stbdiag.sh; break;;
 esac
 
 #
