@@ -12,12 +12,13 @@
 ###############################################################################################################
 HOST=$(hostname)
 DATE=$( date +%Y%m%d_%H%M%S )
-LOCAL_SCRIPT_DIR="/mnt/hdd"
+LOCAL_SCRIPT_DIR="/mnt/hdd/cbt"
+CBT_LOGS_DIR=$LOCAL_SCRIPT_DIR/${HOST}/cbt_logfiles
 UTILS_SUCCESS=0
 THINK_KILL=0
 
 clear
-mkdir -p $LOCAL_SCRIPT_DIR/${HOST}/logfiles
+mkdir -p $CBT_LOGS_DIR
 echo "Hello ${HOST}, we are going to run a few things. You will most likely need to reboot afterwards" 
 
 echo -n "Downloading utilities: "
@@ -38,7 +39,7 @@ read -p "Do you want to accumulate 1 minute of logread data? [Yn]" yn
 case $yn in
  [Nn]* ) break;;
      * ) echo "Doing timed logread.  This will take 1 minute.";
-         do_timed_logread 1 $LOCAL_SCRIPT_DIR/${HOST}/logfiles/logread.out;
+         do_timed_logread 1 $CBT_LOGS_DIR/logread.out;
          break;;
 esac
 
@@ -52,33 +53,33 @@ esac
 # Looking for Think client, if it's not running and no core files were left around, EXIT. If it is running, kill it for core file.
 #
 if [ $THINK_KILL -eq 1 ]; then
-   echo -n "Think status at script start: " | tee $LOCAL_SCRIPT_DIR/${HOST}/logfiles/think_status.out
+   echo -n "Think status at script start: " | tee $CBT_LOGS_DIR/think_status.out
    case "$(pidof think | wc -w)" in
 
-   0)  echo -n "Think Client NOT running. " | tee -a $LOCAL_SCRIPT_DIR/${HOST}/logfiles/think_status.out ;
+   0)  echo -n "Think Client NOT running. " | tee -a $CBT_LOGS_DIR/think_status.out ;
        if [ "$(ls -A $CORE_DIR)" ]; then
-           echo "Core files exist, continuing!" | tee -a $LOCAL_SCRIPT_DIR/${HOST}/logfiles/think_status.out ;
+           echo "Core files exist, continuing!" | tee -a $CBT_LOGS_DIR/think_status.out ;
        else
-           echo "No core files exist. EXITING!" | tee -a $LOCAL_SCRIPT_DIR/${HOST}/logfiles/think_status.out ;
+           echo "No core files exist. EXITING!" | tee -a $CBT_LOGS_DIR/think_status.out ;
            exit ;
        fi
        ;;
-   *)  echo "Think Client IS running, killing for core file: $DATE" | tee -a $LOCAL_SCRIPT_DIR/${HOST}/logfiles/think_status.out;
+   *)  echo "Think Client IS running, killing for core file: $DATE" | tee -a $CBT_LOGS_DIR/think_status.out;
        killall -11 think ;
        ;;
    esac
 fi
 
 echo "Dumping dmesg to file"
-dmesg > $LOCAL_SCRIPT_DIR/${HOST}/logfiles/dmesg-${DATE}.out
+dmesg > $CB_LOGS_DIR/dmesg-${DATE}.out
 echo "Dumping top to file"
-top -b -n1 > $LOCAL_SCRIPT_DIR/${HOST}/logfiles/top-${DATE}.out
+top -b -n1 > $CBT_LOGS_DIR/top-${DATE}.out
 
 echo "Gathering general STB info"
 
-print_json > $LOCAL_SCRIPT_DIR/${HOST}/logfiles/generalstbinfo.out
+print_json > $CBT_LOGS_DIR/generalstbinfo.out
 
-echo "Creating core file archive $LOCAL_SCRIPT_DIR/${HOST}-${DATE}-core.tar.gz, this will take a moment."
+echo "Creating core file archive $CBT_LOGS_DIR/${HOST}-${DATE}-core.tar.gz, this will take a moment."
 
 found=0
 x=1
@@ -108,7 +109,7 @@ tar -czvf $LOCAL_SCRIPT_DIR/${HOST}-${DATE}-core.tar.gz $CORE_DIR/*
 ls -l $LOCAL_SCRIPT_DIR/*.gz 
 
 printf "Creating log file archive if available $LOCAL_SCRIPT_DIR/${HOST}-${DATE}-logs.tar.gz"
-tar -czvf $LOCAL_SCRIPT_DIR/${HOST}-${DATE}-logs.tar.gz $LOCAL_SCRIPT_DIR/${HOST}/logfiles/*
+tar -czvf $LOCAL_SCRIPT_DIR/${HOST}-${DATE}-logs.tar.gz $CBT_LOGS_DIR/*
 ls -l $LOCAL_SCRIPT_DIR/*.gz
 
 # 
@@ -126,10 +127,10 @@ esac
 #
 # Check whether cleanup is desired.
 #
-read -p "Do you want to clean up core/log files? [Y/n]" yn
+read -p "Do you want to clean up script/core/log files? [Y/n]" yn
 case $yn in
  [Nn]* ) echo "Cleanup not performed."; break;;
-     * ) echo "Cleaning up..."; do_cleanup $LOCAL_SCRIPT_DIR/${HOST}*  $LOCAL_SCRIPT_DIR/stbdiag*.sh ; break;;
+     * ) echo "Cleaning up..."; do_cleanup $LOCAL_SCRIPT_DIR; break;;
 esac
 
 #
