@@ -79,35 +79,37 @@ echo "Gathering general STB info"
 
 print_json > $CBT_LOGS_DIR/generalstbinfo.out
 
-echo "Creating core file archive $CBT_LOGS_DIR/${HOST}-${DATE}-core.tar.gz, this will take a moment."
+CORES_FOUND=0
 
-found=0
-x=1
+if [ $THINK_KILL -eq 1 ]; then
+   echo "Creating core file archive $CBT_LOGS_DIR/${HOST}-${DATE}-core.tar.gz, this will take a moment."
+   x=1
 
-echo -n "Waiting for core file: #" 
+   echo -n "Waiting for core file: #" 
 
-for x in 1 2 3 4 5 6 7 8 9 10
-do
-  if [ "$(ls -A $CORE_DIR)" ]; then
-    found=1
-    break
-  else
-    #echo "$CORE_DIR is Empty"
-    echo -n "#"
-    sleep 1
-  fi
-done
-echo ""
+   for x in 1 2 3 4 5 6 7 8 9 10
+   do
+      if [ "$(ls -A $CORE_DIR)" ]; then
+         CORES_FOUND=1
+         break
+      else
+         #echo "$CORE_DIR is Empty"
+         echo -n "#"
+         sleep 1
+      fi
+   done
+   echo ""
+fi
 
-if [ $found -eq 0 ]; then
-  echo "Could not create core file... exiting!"
-  exit 255
+if [ $CORES_FOUND -eq 1 ] || [ "$(ls -A $CORE_DIR)" ]; then
+   CORES_FOUND=1   
+   ls -la $CORE_DIR
+   tar -czvf $LOCAL_SCRIPT_DIR/${HOST}-${DATE}-core.tar.gz $CORE_DIR/*
+   ls -l $LOCAL_SCRIPT_DIR/*.gz 
+else
+   echo "Could not find/create core file... proceeding anyway."
 fi
     
-ls -la $CORE_DIR
-tar -czvf $LOCAL_SCRIPT_DIR/${HOST}-${DATE}-core.tar.gz $CORE_DIR/*
-ls -l $LOCAL_SCRIPT_DIR/*.gz 
-
 printf "Creating log file archive if available $LOCAL_SCRIPT_DIR/${HOST}-${DATE}-logs.tar.gz"
 tar -czvf $LOCAL_SCRIPT_DIR/${HOST}-${DATE}-logs.tar.gz $CBT_LOGS_DIR/*
 ls -l $LOCAL_SCRIPT_DIR/*.gz
@@ -119,7 +121,9 @@ read -p "Do you want to upload tar files to Dropbox? [Y/n]" yn
 case $yn in
   [Nn]* ) echo "Upload not performed."; break;;
       * ) echo "Uploading..."; 
-          upload_to_dropbox uploads $LOCAL_SCRIPT_DIR/${HOST}-${DATE}-core.tar.gz;
+          if [ $CORES_FOUND -eq 1 ]; then
+             upload_to_dropbox uploads $LOCAL_SCRIPT_DIR/${HOST}-${DATE}-core.tar.gz;
+          fi
           upload_to_dropbox uploads $LOCAL_SCRIPT_DIR/${HOST}-${DATE}-logs.tar.gz;
           break;;
 esac
@@ -130,7 +134,7 @@ esac
 read -p "Do you want to clean up script/core/log files? [Y/n]" yn
 case $yn in
  [Nn]* ) echo "Cleanup not performed."; break;;
-     * ) echo "Cleaning up..."; do_cleanup $LOCAL_SCRIPT_DIR /mnt/hdd/stbdiag.sh; break;;
+     * ) echo "Cleaning up..."; do_cleanup $LOCAL_SCRIPT_DIR /mnt/hdd/stbdiag.sh $CORE_DIR/*; break;;
 esac
 
 #

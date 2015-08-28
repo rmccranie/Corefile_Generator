@@ -12,7 +12,6 @@ upload_to_dropbox() {
 do_cleanup() {
     local num_args=$#
     ind=$((num_args))
-    echo $ind
     while [ 0 -lt $ind ]; do  
         rm -rf ${@:$ind}
         ind=$(( ind - 1 ))
